@@ -2,6 +2,7 @@ import { getApiKey } from '../routes/settings.js';
 import { getMockData } from '../mock/mockData.js';
 import { getEtfMockData, isEtfTicker } from '../mock/etfMockData.js';
 import * as cache from '../cache.js';
+import { acquireSlot } from '../rateLimiter.js';
 
 const BASE_URL = 'https://www.alphavantage.co/query';
 const overviewInFlight = new Map();
@@ -9,6 +10,12 @@ const overviewInFlight = new Map();
 async function fetchFromAV(params) {
   const apiKey = getApiKey('alphaVantage');
   if (!apiKey) return null;
+
+  const allowed = await acquireSlot();
+  if (!allowed) {
+    console.warn('AV daily rate limit reached, falling back to mock data');
+    return null;
+  }
 
   const url = new URL(BASE_URL);
   url.searchParams.set('apikey', apiKey);
