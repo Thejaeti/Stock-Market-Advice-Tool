@@ -3,11 +3,14 @@
 
 import { getEtfMockData, getEtfMockTickers } from '../mock/etfMockData.js';
 
-export function computeOverlap(ticker) {
-  const target = getEtfMockData(ticker);
-  if (!target || !target.insiderData?.topHoldings) return null;
+export function computeOverlap(ticker, targetHoldings) {
+  // Use provided live holdings if available, otherwise fall back to mock
+  if (!targetHoldings) {
+    const target = getEtfMockData(ticker);
+    if (!target || !target.insiderData?.topHoldings) return null;
+    targetHoldings = target.insiderData.topHoldings;
+  }
 
-  const targetHoldings = target.insiderData.topHoldings;
   const targetSet = new Map(targetHoldings.map((h) => [h.ticker, h.weight]));
 
   const allTickers = getEtfMockTickers();

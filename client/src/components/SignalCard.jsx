@@ -10,12 +10,32 @@ export default function SignalCard({ signal }) {
   else if (signal.score < 0) badgeClass = 'badge-mild-bearish';
   else badgeClass = 'badge-neutral';
 
+  const source = signal.dataSource;
+  let sourceLabel = null;
+  let sourceClass = '';
+  if (source === 'live') {
+    sourceLabel = 'LIVE';
+    sourceClass = 'source-badge-live';
+  } else if (source === 'partial') {
+    sourceLabel = 'PARTIAL';
+    sourceClass = 'source-badge-partial';
+  } else if (source === 'config') {
+    sourceLabel = 'CONFIG';
+    sourceClass = 'source-badge-config';
+  } else if (source === 'mock') {
+    sourceLabel = 'MOCK';
+    sourceClass = 'source-badge-mock';
+  }
+
   return (
     <div className={`signal-card ${expanded ? 'expanded' : ''}`}>
       <button className="signal-card-header" onClick={() => setExpanded(!expanded)}>
         <div className="signal-card-left">
           <span className="signal-name">{signal.signal}</span>
           <span className={`signal-badge ${badgeClass}`}>{signal.label}</span>
+          {sourceLabel && (
+            <span className={`source-badge ${sourceClass}`}>{sourceLabel}</span>
+          )}
         </div>
         <div className="signal-card-right">
           <span className="signal-score">

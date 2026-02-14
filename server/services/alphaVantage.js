@@ -54,15 +54,17 @@ export async function getDailyPrices(ticker) {
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    prices._source = 'live';
     cache.set(cacheKey, prices);
     return prices;
   }
 
   // Fallback to mock data (stocks then ETFs)
   const mock = getMockData(ticker);
-  if (mock) return mock.priceHistory;
+  if (mock) { mock.priceHistory._source = 'mock'; return mock.priceHistory; }
   const etfMock = getEtfMockData(ticker);
-  return etfMock ? etfMock.priceHistory : null;
+  if (etfMock) { etfMock.priceHistory._source = 'mock'; return etfMock.priceHistory; }
+  return null;
 }
 
 async function fetchRawOverview(ticker) {
@@ -124,6 +126,7 @@ export async function getCompanyOverview(ticker) {
       eps: parseFloat(data.EPS) || 0,
       revenueGrowth: parseFloat(data.QuarterlyRevenueGrowthYOY) || 0,
       earningsGrowth: parseFloat(data.QuarterlyEarningsGrowthYOY) || 0,
+      _source: 'live',
     };
     cache.set(cacheKey, overview);
     return overview;
@@ -131,9 +134,9 @@ export async function getCompanyOverview(ticker) {
 
   // Fallback to mock data (stocks then ETFs)
   const mock = getMockData(ticker);
-  if (mock) return mock.overview;
+  if (mock) return { ...mock.overview, _source: 'mock' };
   const etfMock = getEtfMockData(ticker);
-  return etfMock ? etfMock.overview : null;
+  return etfMock ? { ...etfMock.overview, _source: 'mock' } : null;
 }
 
 export async function getAnalystData(ticker) {
@@ -164,6 +167,7 @@ export async function getAnalystData(ticker) {
       currentPrice: null,
       medianTarget,
       earningsSurprises,
+      _source: 'live',
     };
     cache.set(cacheKey, result);
     return result;
@@ -171,9 +175,9 @@ export async function getAnalystData(ticker) {
 
   // Fallback to mock data
   const mock = getMockData(ticker);
-  if (mock) return mock.analystData;
+  if (mock) return { ...mock.analystData, _source: 'mock' };
   const etfMock = getEtfMockData(ticker);
-  return etfMock ? etfMock.analystData : null;
+  return etfMock ? { ...etfMock.analystData, _source: 'mock' } : null;
 }
 
 export async function getInsiderData(ticker) {
@@ -181,11 +185,44 @@ export async function getInsiderData(ticker) {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  // No direct AV endpoint for this — use mock data
+  // Try Finnhub for stock insider transactions
+  const finnhubKey = getApiKey('finnhub');
+  if (finnhubKey && !isEtfTicker(ticker)) {
+    try {
+      const { getInsiderTransactions } = await import('./finnhub.js');
+      const liveData = await getInsiderTransactions(ticker);
+      if (liveData) {
+        liveData._source = 'live';
+        cache.set(cacheKey, liveData);
+        return liveData;
+      }
+    } catch (err) {
+      console.warn('Finnhub insider fetch failed, falling back to mock:', err.message);
+    }
+  }
+
+  // Try Finnhub for ETF holdings (flows stay mock)
+  if (finnhubKey && isEtfTicker(ticker)) {
+    try {
+      const { getEtfHoldings } = await import('./finnhub.js');
+      const holdings = await getEtfHoldings(ticker);
+      const etfMock = getEtfMockData(ticker);
+      const base = etfMock?.insiderData || {};
+      if (holdings) {
+        const result = { ...base, topHoldings: holdings, _source: 'partial' };
+        cache.set(cacheKey, result);
+        return result;
+      }
+    } catch (err) {
+      console.warn('Finnhub ETF holdings fetch failed, falling back to mock:', err.message);
+    }
+  }
+
+  // Fallback to mock data
   const mock = getMockData(ticker);
-  if (mock) return mock.insiderData;
+  if (mock) return { ...mock.insiderData, _source: 'mock' };
   const etfMock = getEtfMockData(ticker);
-  return etfMock ? etfMock.insiderData : null;
+  return etfMock ? { ...etfMock.insiderData, _source: 'mock' } : null;
 }
 
 export async function getRiskData(ticker) {
@@ -202,6 +239,7 @@ export async function getRiskData(ticker) {
       historicalVolatility: null,
       maxDrawdown: null,
       debtToEquity: null,
+      _source: 'live',
     };
     cache.set(cacheKey, result);
     return result;
@@ -209,9 +247,9 @@ export async function getRiskData(ticker) {
 
   // Fallback to mock data (stocks then ETFs)
   const mock = getMockData(ticker);
-  if (mock) return mock.riskData;
+  if (mock) return { ...mock.riskData, _source: 'mock' };
   const etfMock = getEtfMockData(ticker);
-  return etfMock ? etfMock.riskData : null;
+  return etfMock ? { ...etfMock.riskData, _source: 'mock' } : null;
 }
 
 export function isUsingMockData() {

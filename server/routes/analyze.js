@@ -13,6 +13,10 @@ import { appendEntry } from '../services/scoreHistory.js';
 
 const router = Router();
 
+function src(data) {
+  return data?._source || 'mock';
+}
+
 router.get('/:ticker', async (req, res) => {
   try {
     const ticker = req.params.ticker.toUpperCase();
@@ -69,11 +73,26 @@ router.get('/:ticker', async (req, res) => {
     const signal5 = analyzeSignal5(riskData);
     const signals = [signal1, signal2, signal3, signal4, signal5];
 
+    // Tag each signal with its data source
+    signal1.dataSource = src(prices);
+    signal2.dataSource = src(overview);
+    signal3.dataSource = src(analystData);
+    signal4.dataSource = src(insiderData);
+    // Signal 5 uses both riskData (from AV OVERVIEW) and prices — mock if either is mock
+    signal5.dataSource = src(riskData) === 'mock' || src(prices) === 'mock' ? 'mock' : 'live';
+
     const signal6 = analyzeSignal6(ticker);
-    if (signal6) signals.push(signal6);
+    if (signal6) {
+      signal6.dataSource = 'config';
+      signals.push(signal6);
+    }
 
     const convergence = computeConvergence(signals);
-    const overlap = assetType === 'etf' ? computeOverlap(ticker) : null;
+
+    // Pass live ETF holdings to overlap if available
+    const liveHoldings = insiderData?.topHoldings && src(insiderData) !== 'mock'
+      ? insiderData.topHoldings : undefined;
+    const overlap = assetType === 'etf' ? computeOverlap(ticker, liveHoldings) : null;
 
     // Fire-and-forget: log scores for historical tracking
     const today = new Date().toISOString().split('T')[0];
