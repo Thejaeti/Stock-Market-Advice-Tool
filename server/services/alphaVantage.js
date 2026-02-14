@@ -57,8 +57,8 @@ export async function getDailyPrices(ticker) {
   return etfMock ? etfMock.priceHistory : null;
 }
 
-export async function getCompanyOverview(ticker) {
-  const cacheKey = `overview:${ticker}`;
+async function fetchRawOverview(ticker) {
+  const cacheKey = `raw-overview:${ticker}`;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
@@ -68,6 +68,27 @@ export async function getCompanyOverview(ticker) {
   });
 
   if (data && data.Symbol) {
+    cache.set(cacheKey, data);
+    return data;
+  }
+  return null;
+}
+
+function fiscalDateToQuarter(dateStr) {
+  const [, month] = dateStr.split('-').map(Number);
+  const quarter = Math.ceil(month / 3);
+  const year = dateStr.split('-')[0];
+  return `Q${quarter} ${year}`;
+}
+
+export async function getCompanyOverview(ticker) {
+  const cacheKey = `overview:${ticker}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  const data = await fetchRawOverview(ticker);
+
+  if (data) {
     const overview = {
       symbol: data.Symbol,
       name: data.Name,
@@ -98,7 +119,35 @@ export async function getAnalystData(ticker) {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  // No direct AV endpoint for this — use mock data
+  const overview = await fetchRawOverview(ticker);
+
+  if (overview && overview.AnalystTargetPrice) {
+    const buy = (parseInt(overview.AnalystRatingStrongBuy) || 0) + (parseInt(overview.AnalystRatingBuy) || 0);
+    const hold = parseInt(overview.AnalystRatingHold) || 0;
+    const sell = (parseInt(overview.AnalystRatingSell) || 0) + (parseInt(overview.AnalystRatingStrongSell) || 0);
+    const medianTarget = parseFloat(overview.AnalystTargetPrice) || 0;
+
+    let earningsSurprises = [];
+    const earningsData = await fetchFromAV({ function: 'EARNINGS', symbol: ticker });
+    if (earningsData && earningsData.quarterlyEarnings) {
+      earningsSurprises = earningsData.quarterlyEarnings.slice(0, 4).map(q => ({
+        quarter: fiscalDateToQuarter(q.fiscalDateEnding),
+        actual: parseFloat(q.reportedEPS) || 0,
+        estimate: parseFloat(q.estimatedEPS) || 0,
+      }));
+    }
+
+    const result = {
+      ratings: { buy, hold, sell },
+      currentPrice: null,
+      medianTarget,
+      earningsSurprises,
+    };
+    cache.set(cacheKey, result);
+    return result;
+  }
+
+  // Fallback to mock data
   const mock = getMockData(ticker);
   if (mock) return mock.analystData;
   const etfMock = getEtfMockData(ticker);

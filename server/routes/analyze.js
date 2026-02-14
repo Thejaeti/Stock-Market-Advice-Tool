@@ -30,6 +30,11 @@ router.get('/:ticker', async (req, res) => {
       });
     }
 
+    const currentPrice = prices?.[prices.length - 1]?.close || null;
+    if (analystData && analystData.currentPrice == null && currentPrice) {
+      analystData.currentPrice = currentPrice;
+    }
+
     const assetType = getAssetType(ticker);
     const thesis = getThesisData(ticker);
 
