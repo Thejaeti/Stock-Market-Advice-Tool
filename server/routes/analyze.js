@@ -35,6 +35,29 @@ router.get('/:ticker', async (req, res) => {
       analystData.currentPrice = currentPrice;
     }
 
+    // Inject computed risk metrics from price data
+    if (riskData && prices && prices.length >= 20) {
+      if (riskData.historicalVolatility == null) {
+        const logReturns = [];
+        for (let i = 1; i < prices.length; i++) {
+          logReturns.push(Math.log(prices[i].close / prices[i - 1].close));
+        }
+        const mean = logReturns.reduce((s, r) => s + r, 0) / logReturns.length;
+        const variance = logReturns.reduce((s, r) => s + (r - mean) ** 2, 0) / (logReturns.length - 1);
+        riskData.historicalVolatility = Math.sqrt(variance) * Math.sqrt(252);
+      }
+      if (riskData.maxDrawdown == null) {
+        let peak = prices[0].close;
+        let maxDd = 0;
+        for (const p of prices) {
+          if (p.close > peak) peak = p.close;
+          const dd = (p.close - peak) / peak;
+          if (dd < maxDd) maxDd = dd;
+        }
+        riskData.maxDrawdown = maxDd;
+      }
+    }
+
     const assetType = getAssetType(ticker);
     const thesis = getThesisData(ticker);
 

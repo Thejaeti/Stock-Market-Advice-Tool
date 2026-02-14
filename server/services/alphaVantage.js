@@ -4,6 +4,7 @@ import { getEtfMockData, isEtfTicker } from '../mock/etfMockData.js';
 import * as cache from '../cache.js';
 
 const BASE_URL = 'https://www.alphavantage.co/query';
+const overviewInFlight = new Map();
 
 async function fetchFromAV(params) {
   const apiKey = getApiKey('alphaVantage');
@@ -62,16 +63,30 @@ async function fetchRawOverview(ticker) {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  const data = await fetchFromAV({
-    function: 'OVERVIEW',
-    symbol: ticker,
-  });
-
-  if (data && data.Symbol) {
-    cache.set(cacheKey, data);
-    return data;
+  // Deduplicate concurrent in-flight requests for the same ticker
+  if (overviewInFlight.has(ticker)) {
+    return overviewInFlight.get(ticker);
   }
-  return null;
+
+  const promise = (async () => {
+    const data = await fetchFromAV({
+      function: 'OVERVIEW',
+      symbol: ticker,
+    });
+
+    if (data && data.Symbol) {
+      cache.set(cacheKey, data);
+      return data;
+    }
+    return null;
+  })();
+
+  overviewInFlight.set(ticker, promise);
+  try {
+    return await promise;
+  } finally {
+    overviewInFlight.delete(ticker);
+  }
 }
 
 function fiscalDateToQuarter(dateStr) {
@@ -171,7 +186,21 @@ export async function getRiskData(ticker) {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  // No direct AV endpoint for this — use mock data
+  const data = await fetchRawOverview(ticker);
+
+  if (data) {
+    const beta = parseFloat(data.Beta);
+    const result = {
+      beta: isNaN(beta) ? null : beta,
+      historicalVolatility: null,
+      maxDrawdown: null,
+      debtToEquity: null,
+    };
+    cache.set(cacheKey, result);
+    return result;
+  }
+
+  // Fallback to mock data (stocks then ETFs)
   const mock = getMockData(ticker);
   if (mock) return mock.riskData;
   const etfMock = getEtfMockData(ticker);
