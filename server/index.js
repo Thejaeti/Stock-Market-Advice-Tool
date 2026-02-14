@@ -4,6 +4,7 @@ import cors from 'cors';
 import analyzeRouter from './routes/analyze.js';
 import settingsRouter from './routes/settings.js';
 import thesisRouter from './routes/thesis.js';
+import historyRouter from './routes/history.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use('/api/analyze', analyzeRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/thesis', thesisRouter);
+app.use('/api/history', historyRouter);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

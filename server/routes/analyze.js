@@ -9,6 +9,7 @@ import { analyzeSignal5 } from '../services/signal5-risk.js';
 import { analyzeSignal6 } from '../services/signal6-thesis.js';
 import { computeOverlap } from '../services/overlapAnalysis.js';
 import { computeConvergence } from '../services/convergence.js';
+import { appendEntry } from '../services/scoreHistory.js';
 
 const router = Router();
 
@@ -73,6 +74,19 @@ router.get('/:ticker', async (req, res) => {
 
     const convergence = computeConvergence(signals);
     const overlap = assetType === 'etf' ? computeOverlap(ticker) : null;
+
+    // Fire-and-forget: log scores for historical tracking
+    const today = new Date().toISOString().split('T')[0];
+    const scores = {};
+    signals.forEach((s, i) => { scores[`signal${i + 1}`] = s.score; });
+    appendEntry(ticker, {
+      date: today,
+      scores,
+      composite: convergence.compositeScore,
+      label: convergence.label,
+      signalCount: signals.length,
+      source: 'live',
+    }).catch(err => console.warn('Failed to log score history:', err.message));
 
     res.json({
       ticker,

@@ -3,6 +3,7 @@ import TickerInput from './TickerInput.jsx';
 import ConvergenceSummary from './ConvergenceSummary.jsx';
 import SignalCard from './SignalCard.jsx';
 import PriceChart from './PriceChart.jsx';
+import ConvergenceChart from './ConvergenceChart.jsx';
 import ThesisView from './ThesisView.jsx';
 import ThesisBadge from './ThesisBadge.jsx';
 import OverlapWarnings from './OverlapWarnings.jsx';
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState('analyze');
   const [thesisData, setThesisData] = useState(null);
   const [thesisLoading, setThesisLoading] = useState(false);
+  const [history, setHistory] = useState(null);
 
   // Fetch thesis data once when switching to thesis view
   useEffect(() => {
@@ -32,6 +34,7 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setHistory(null);
     try {
       const res = await fetch(`/api/analyze/${encodeURIComponent(ticker)}`);
       const data = await res.json();
@@ -39,6 +42,11 @@ export default function Dashboard() {
         setError(data.error || 'Analysis failed.');
       } else {
         setResult(data);
+        // Non-blocking: fetch history for convergence timeline
+        fetch(`/api/history/${encodeURIComponent(ticker)}`)
+          .then((r) => r.json())
+          .then((h) => setHistory(h))
+          .catch(() => {});
       }
     } catch {
       setError('Could not connect to the server. Make sure the backend is running.');
@@ -103,6 +111,8 @@ export default function Dashboard() {
               </div>
 
               <ConvergenceSummary convergence={result.convergence} />
+
+              <ConvergenceChart data={history} ticker={result.ticker} />
 
               {result.priceHistory.length > 0 && (
                 <PriceChart data={result.priceHistory} ticker={result.ticker} />
