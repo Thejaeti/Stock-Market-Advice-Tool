@@ -201,23 +201,6 @@ export async function getInsiderData(ticker) {
     }
   }
 
-  // Try Finnhub for ETF holdings (flows stay mock)
-  if (finnhubKey && isEtfTicker(ticker)) {
-    try {
-      const { getEtfHoldings } = await import('./finnhub.js');
-      const holdings = await getEtfHoldings(ticker);
-      const etfMock = getEtfMockData(ticker);
-      const base = etfMock?.insiderData || {};
-      if (holdings) {
-        const result = { ...base, topHoldings: holdings, _source: 'partial' };
-        cache.set(cacheKey, result);
-        return result;
-      }
-    } catch (err) {
-      console.warn('Finnhub ETF holdings fetch failed, falling back to mock:', err.message);
-    }
-  }
-
   // Fallback to mock data
   const mock = getMockData(ticker);
   if (mock) return { ...mock.insiderData, _source: 'mock' };

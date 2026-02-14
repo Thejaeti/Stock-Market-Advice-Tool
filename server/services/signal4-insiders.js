@@ -63,26 +63,28 @@ export function analyzeSignal4(insiderData) {
   const instOwn = insiderData.institutionalOwnership;
   let ownershipScore = 0;
 
-  if (instOwn > 0.7) {
-    ownershipScore = 0.5;
-    explanations.push(
-      `Institutional ownership at ${(instOwn * 100).toFixed(0)}% — strong institutional backing and broad coverage.`
-    );
-  } else if (instOwn > 0.5) {
-    ownershipScore = 0.25;
-    explanations.push(
-      `Institutional ownership at ${(instOwn * 100).toFixed(0)}% — moderate institutional interest.`
-    );
-  } else if (instOwn > 0.3) {
-    ownershipScore = 0;
-    explanations.push(
-      `Institutional ownership at ${(instOwn * 100).toFixed(0)}% — below average institutional coverage.`
-    );
-  } else {
-    ownershipScore = -0.5;
-    explanations.push(
-      `Institutional ownership at ${(instOwn * 100).toFixed(0)}% — thin institutional support, higher retail concentration.`
-    );
+  if (instOwn != null) {
+    if (instOwn > 0.7) {
+      ownershipScore = 0.5;
+      explanations.push(
+        `Institutional ownership at ${(instOwn * 100).toFixed(0)}% — strong institutional backing and broad coverage.`
+      );
+    } else if (instOwn > 0.5) {
+      ownershipScore = 0.25;
+      explanations.push(
+        `Institutional ownership at ${(instOwn * 100).toFixed(0)}% — moderate institutional interest.`
+      );
+    } else if (instOwn > 0.3) {
+      ownershipScore = 0;
+      explanations.push(
+        `Institutional ownership at ${(instOwn * 100).toFixed(0)}% — below average institutional coverage.`
+      );
+    } else {
+      ownershipScore = -0.5;
+      explanations.push(
+        `Institutional ownership at ${(instOwn * 100).toFixed(0)}% — thin institutional support, higher retail concentration.`
+      );
+    }
   }
   totalScore += ownershipScore;
 

@@ -52,7 +52,7 @@ export async function getInsiderTransactions(ticker) {
     .filter((t) => t.transactionCode === 'P' || t.transactionCode === 'S')
     .map((t) => ({
       type: t.transactionCode === 'P' ? 'buy' : 'sell',
-      value: Math.abs((t.share || 0) * (t.transactionPrice || 0)),
+      value: Math.abs((t.change || 0) * (t.transactionPrice || 0)),
       date: t.transactionDate,
     }))
     .filter((t) => t.value > 0);
@@ -71,28 +71,3 @@ export async function getInsiderTransactions(ticker) {
   return result;
 }
 
-/**
- * Fetch ETF holdings from Finnhub.
- * Returns array of { ticker, weight } matching our mock data shape.
- */
-export async function getEtfHoldings(ticker) {
-  const cacheKey = `finnhub-etf-holdings:${ticker}`;
-  const cached = cache.get(cacheKey);
-  if (cached) return cached;
-
-  const data = await fetchFromFinnhub('/etf/holdings', { symbol: ticker });
-
-  if (!data || !data.holdings || data.holdings.length === 0) return null;
-
-  const holdings = data.holdings
-    .filter((h) => h.symbol && h.percent != null)
-    .map((h) => ({
-      ticker: h.symbol,
-      weight: +h.percent.toFixed(2),
-    }))
-    .sort((a, b) => b.weight - a.weight);
-
-  // Cache ETF holdings longer — they change slowly
-  cache.set(cacheKey, holdings, 2 * 60 * 60 * 1000); // 2 hours
-  return holdings;
-}

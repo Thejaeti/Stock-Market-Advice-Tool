@@ -21,10 +21,15 @@ export default function Settings() {
   async function handleSave(e) {
     e.preventDefault();
     try {
+      // Only send keys that were actually changed (not masked placeholders)
+      const body = {};
+      if (!alphaVantage.startsWith('••••')) body.alphaVantage = alphaVantage;
+      if (!finnhub.startsWith('••••')) body.finnhub = finnhub;
+
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alphaVantage, finnhub }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       setStatus(data.usingMockData ? 'Saved — using mock data' : 'Saved — using live data');
@@ -62,7 +67,7 @@ export default function Settings() {
         </div>
 
         <div className="form-group">
-          <label htmlFor="fh-key">Finnhub API Key (future use)</label>
+          <label htmlFor="fh-key">Finnhub API Key</label>
           <input
             id="fh-key"
             type="text"
@@ -70,7 +75,12 @@ export default function Settings() {
             onChange={(e) => setFinnhub(e.target.value)}
             placeholder="Enter your Finnhub API key"
           />
-          <small>Used in future phases for additional data sources.</small>
+          <small>
+            Used for insider transactions and ETF holdings. Get a free key at{' '}
+            <a href="https://finnhub.io/register" target="_blank" rel="noreferrer">
+              finnhub.io
+            </a>
+          </small>
         </div>
 
         <button type="submit" className="save-btn">Save Settings</button>

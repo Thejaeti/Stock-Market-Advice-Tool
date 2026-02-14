@@ -89,10 +89,7 @@ router.get('/:ticker', async (req, res) => {
 
     const convergence = computeConvergence(signals);
 
-    // Pass live ETF holdings to overlap if available
-    const liveHoldings = insiderData?.topHoldings && src(insiderData) !== 'mock'
-      ? insiderData.topHoldings : undefined;
-    const overlap = assetType === 'etf' ? computeOverlap(ticker, liveHoldings) : null;
+    const overlap = assetType === 'etf' ? computeOverlap(ticker) : null;
 
     // Fire-and-forget: log scores for historical tracking
     const today = new Date().toISOString().split('T')[0];

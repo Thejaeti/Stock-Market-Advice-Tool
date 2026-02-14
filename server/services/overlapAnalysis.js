@@ -1,15 +1,13 @@
 // Overlap Analysis: Computes holding overlap between thesis ETFs
 // Compares a target ETF's top holdings against all other thesis ETFs
+// Note: Uses mock holdings data — live ETF holdings APIs (Finnhub, etc.) are paywalled
 
 import { getEtfMockData, getEtfMockTickers } from '../mock/etfMockData.js';
 
-export function computeOverlap(ticker, targetHoldings) {
-  // Use provided live holdings if available, otherwise fall back to mock
-  if (!targetHoldings) {
-    const target = getEtfMockData(ticker);
-    if (!target || !target.insiderData?.topHoldings) return null;
-    targetHoldings = target.insiderData.topHoldings;
-  }
+export function computeOverlap(ticker) {
+  const targetMock = getEtfMockData(ticker);
+  const targetHoldings = targetMock?.insiderData?.topHoldings;
+  if (!targetHoldings) return null;
 
   const targetSet = new Map(targetHoldings.map((h) => [h.ticker, h.weight]));
 
@@ -19,10 +17,10 @@ export function computeOverlap(ticker, targetHoldings) {
   for (const otherTicker of allTickers) {
     if (otherTicker === ticker.toUpperCase()) continue;
 
-    const other = getEtfMockData(otherTicker);
-    if (!other || !other.insiderData?.topHoldings) continue;
+    const otherMock = getEtfMockData(otherTicker);
+    const otherHoldings = otherMock?.insiderData?.topHoldings;
+    if (!otherHoldings) continue;
 
-    const otherHoldings = other.insiderData.topHoldings;
     const sharedHoldings = [];
 
     for (const holding of otherHoldings) {
@@ -44,7 +42,7 @@ export function computeOverlap(ticker, targetHoldings) {
     if (sharedHoldings.length >= 2 || overlapPct > 5) {
       overlaps.push({
         ticker: otherTicker,
-        name: other.overview.name,
+        name: otherMock?.overview?.name || otherTicker,
         sharedCount: sharedHoldings.length,
         overlapPct: +overlapPct.toFixed(1),
         sharedHoldings: sharedHoldings.sort((a, b) => b.weightInTarget - a.weightInTarget),
